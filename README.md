@@ -1,73 +1,100 @@
-# Welcome to your Lovable project
 
-## Project info
+🛡️ Plataforma LGPD – Análise de Conformidade e Riscos
 
-**URL**: https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098
+Avalie a conformidade da sua organização com a Lei Geral de Proteção de Dados (LGPD) e identifique riscos com base na ISO/IEC 27001.
+Ferramenta interativa, moderna e totalmente responsiva desenvolvida em React + TypeScript + Firebase.
 
-## How can I edit this code?
+---------------------------------------------------------------------
+🌐 DEMONSTRAÇÃO
 
-There are several ways of editing your application.
+Executar localmente:
+    npm run dev
 
-**Use Lovable**
+---------------------------------------------------------------------
+🚀 FUNCIONALIDADES PRINCIPAIS
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098) and start prompting.
+- Questionário Dinâmico
+  Perguntas adaptativas que mudam conforme o perfil e setor.
 
-Changes made via Lovable will be committed automatically to this repo.
+- Cálculo de Score de Conformidade
+  Geração automática do índice (0–100) e classificação de risco.
 
-**Use your preferred IDE**
+- Análise Inteligente com IA
+  Sugestões automáticas de melhorias e diagnóstico contextual.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Dashboard de Resultados
+  Visualização de gráficos, comparativos e evolução histórica.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Geração de Relatório PDF
+  Relatórios com logo institucional e recomendações personalizadas.
 
-Follow these steps:
+- Armazenamento Seguro no Firebase
+  Respostas e relatórios salvos com autenticação e criptografia.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---------------------------------------------------------------------
+🧠 STACK TECNOLÓGICA
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+React + Vite — Interface moderna
+TypeScript — Tipagem e segurança
+TailwindCSS + ShadCN UI — Estilo e componentes
+Firebase — Backend e storage
+Framer Motion — Animações
+Lucide React — Ícones
+PDFKit / ReportLab — Relatórios em PDF
 
-# Step 3: Install the necessary dependencies.
-npm i
+---------------------------------------------------------------------
+⚙️ INSTALAÇÃO E EXECUÇÃO
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+1. Clone o repositório:
+   git clone https://github.com/KetrinDiovanaVargas/lgpd-compliance-platform.git
 
-**Edit a file directly in GitHub**
+2. Acesse o diretório:
+   cd lgpd-compliance-platform
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. Instale as dependências:
+   npm install
 
-**Use GitHub Codespaces**
+4. Inicie o servidor:
+   npm run dev
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+5. Abra no navegador:
+   http://localhost:5173
 
-## What technologies are used for this project?
+---------------------------------------------------------------------
+⚙️ DEPENDÊNCIAS NECESSÁRIAS
 
-This project is built with:
+Antes de rodar o projeto, certifique-se de instalar todas as dependências necessárias:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Instalar automaticamente (recomendado):
+    npm install
 
-## How can I deploy this project?
+Se faltar algo, instale manualmente com:
 
-Simply open [Lovable](https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098) and click on Share -> Publish.
+    npm install react react-dom
+    npm install vite typescript
+    npm install firebase
+    npm install tailwindcss postcss autoprefixer
+    npm install class-variance-authority clsx tailwind-merge
+    npm install framer-motion lucide-react recharts sonner
+    npm install @radix-ui/react-icons
+    npm install @radix-ui/react-select
+    npm install @radix-ui/react-toast
+    npm install @radix-ui/react-label
+    npm install @radix-ui/react-checkbox
+    npm install @radix-ui/react-dialog
+    npm install @radix-ui/react-tooltip
+    npm install @radix-ui/react-progress
+    npm install @radix-ui/react-scroll-area
+    npm install @radix-ui/react-slot
+    npm install @radix-ui/react-tabs
+    npm install @radix-ui/react-avatar
 
-## Can I connect a custom domain to my Lovable project?
+---------------------------------------------------------------------
+🎨 DESIGN E IDENTIDADE VISUAL
 
-Yes, you can!
+Cores: #1D4ED8 / #153A95 / #3B82F6 / #1E6EE3
+Fonte: Inter
+Estilo: Interface clean, com transparência e contraste suave.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---------------------------------------------------------------------
