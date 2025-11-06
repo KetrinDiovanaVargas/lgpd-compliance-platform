@@ -1,73 +1,51 @@
-# Welcome to your Lovable project
+🛡️ Plataforma LGPD – Análise de Conformidade e Riscos
 
-## Project info
+Avalie a conformidade da sua organização com a Lei Geral de Proteção de Dados (LGPD) e identifique riscos com base na ISO/IEC 27001.
+A plataforma utiliza questionários dinâmicos, análise automatizada e dashboards interativos para exibir o nível de maturidade e risco em segurança da informação.
 
-**URL**: https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098
+🌐 Acesso Online
+Versão publicada: https://lgpd-compliance.vercel.app/
 
-## How can I edit this code?
+Principais Funcionalidades
+- Questionário Adaptativo: perguntas inteligentes que se ajustam conforme o perfil e respostas do usuário.
+- Análise Automatizada: cálculo de score de conformidade e geração de recomendações personalizadas.
+- Dashboard Interativo: gráficos com distribuição de riscos, status de controles ISO/IEC 27001 e nível de maturidade.
+- Exportação de Relatório: relatório dinâmico com pontuação e recomendações.
+- Integração com Firebase: armazenamento seguro e criptografia em nuvem.
 
-There are several ways of editing your application.
+⚙️ Instalação Local
+1. Clone o repositório:
+   git clone https://github.com/KetrinDiovanaVargas/lgpd-compliance-platform.git
+2. Acesse o diretório:
+   cd lgpd-compliance-platform
+3. Instale as dependências:
+   npm install
+4. Crie o arquivo .env na raiz do projeto e adicione as credenciais Firebase:
+   VITE_FIREBASE_API_KEY=your_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+5. Execute o projeto localmente:
+   npm run dev
 
-**Use Lovable**
+📦 Comandos Úteis
+- npm install → Instala dependências
+- npm run dev → Executa em modo desenvolvimento
+- npm run build → Gera versão de produção
+- npm run preview → Pré-visualiza o build
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098) and start prompting.
+🧰 Principais Dependências
+React + Vite, Firebase, Tailwind CSS, shadcn/ui, lucide-react, Recharts, Sonner, Framer Motion
 
-Changes made via Lovable will be committed automatically to this repo.
+🎨 Design
+Cores principais: #1D4ED8, #153A95, #3B82F6, #1E6EE3, #4A4A4A
+Fonte: Inter
+Estilo: Minimalista, com degradês azulados e animações suaves.
 
-**Use your preferred IDE**
+🚀 Deploy Automático com Vercel
+Hospedado no Vercel: https://lgpd-compliance.vercel.app/
+Cada push para main gera um novo deploy automaticamente.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/4baf2328-d242-4a28-85d4-bf883eb8a098) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+🧠 Foco em privacidade, design e segurança da informação.
