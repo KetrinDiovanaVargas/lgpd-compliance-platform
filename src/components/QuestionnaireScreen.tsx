@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { saveResponsesStage } from "@/services/saveResponsesStage";
 
 interface Question {
   id: string;
@@ -88,7 +89,8 @@ export const QuestionnaireScreen = ({
       setCurrentQuestion(0);
       setShowOtherInput(false);
     } else {
-      handleSubmit();
+      //handleSubmit();
+      handleSubmitStage();
     }
   };
 
@@ -100,6 +102,50 @@ export const QuestionnaireScreen = ({
     } else if (currentStage > 0) {
       setCurrentStage((prev) => prev - 1);
       setCurrentQuestion(stages[currentStage - 1].questions.length - 1);
+    }
+  };
+
+  
+  // envio ao final do estágio
+  const handleSubmitStage = async () => {
+    setIsSubmitting(true);
+
+    try {
+      // 1) salva dados brutos no firestore
+      const id = await saveResponsesStage("usuario_demo", responses, 0);
+
+      // 2) envia para backend /api/analyze (GROQ, Gemini, etc)
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: "usuario_demo",
+          responses: Object.entries(responses).map(([qid, ans]) => ({
+            questionId: qid,
+            answer: ans,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error("Erro ao gerar análise");
+        return;
+      }
+
+      const result = await response.json();
+
+      onComplete({
+        responses,
+        report: result.report,
+        metrics: result.metrics,
+      });
+
+      toast.success("Análise gerada com sucesso!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao enviar análise.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

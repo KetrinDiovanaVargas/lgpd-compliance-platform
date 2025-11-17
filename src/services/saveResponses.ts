@@ -8,8 +8,10 @@ export const saveResponses = async (userId: string, responses: any, stage: numbe
     // Remove valores undefined
     const safeResponses = JSON.parse(JSON.stringify(responses));
 
-    const docRef = await addDoc(collection(db, "responses"), {
-      userId,
+    // 🔥 Caminho: responses → userId → items → responseId
+    const userResponsesRef = collection(db, "responses", userId, "items");
+
+    const docRef = await addDoc(userResponsesRef, {
       stage,
       responses: safeResponses,
       createdAt: serverTimestamp(),
@@ -26,3 +28,4 @@ export const saveResponses = async (userId: string, responses: any, stage: numbe
     throw error;
   }
 };
+
