@@ -15,7 +15,7 @@ import {
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { saveResponsesStage } from "@/services/saveResponsesStage";
+import { saveResponsesStage, saveFinalReport } from "@/services/saveResponsesStage";
 
 interface Question {
   id: string;
@@ -145,41 +145,131 @@ export const QuestionnaireScreen = ({
   };
 
   // envio final
-  const handleSubmitStage = async () => {
-    setIsSubmitting(true);
+  //const handleSubmitStage = async () => {
+    //setIsSubmitting(true);
+
+    //try {
+      //await saveResponsesStage("usuario_demo", stageResponses, currentStage);
+
+      //const response = await fetch("/api/analyze", {
+        //method: "POST",
+        //headers: { "Content-Type": "application/json" },
+        //body: JSON.stringify({
+          //userId: "usuario_demo",
+          //responses: Object.entries(responses).map(([idx, data]) => ({
+            //questionId: Number(idx),
+            //question: data.question,
+            //answer: data.answer,
+          //})),
+        //}),
+      //});
+
+      //const result = await response.json();
+
+      //onComplete({
+        //responses,
+        //report: result.report,
+        //metrics: result.metrics,
+      //});
+      
+
+      //toast.success("Análise gerada com sucesso!");
+    //} catch (e) {
+      //console.error(e);
+      //toast.error("Erro ao enviar análise.");
+    //} finally {
+      //setIsSubmitting(false);
+    //}
+  //};
+
+const handleSubmitStage = async () => {
+  setIsSubmitting(true);
+
+  try {
+    // 🔥 Salva o último stage ANTES de qualquer chamada externa
+    await saveResponsesStage("usuario_demo", stageResponses, currentStage);
+
+    console.log("🔵 Enviando dados para /api/analyze ...");
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: "usuario_demo",
+        responses: Object.entries(responses).map(([idx, data]) => ({
+          questionId: Number(idx),
+          question: data.question,
+          answer: data.answer,
+        })),
+      }),
+    });
+
+    // ========================
+    // 🚨 CORREÇÃO IMPORTANTE
+    // ========================
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Erro no /api/analyze:", errorText);
+      toast.error("Erro ao analisar no servidor.");
+      return; // não continua
+    }
+
+    let result = null;
 
     try {
-      await saveResponsesStage("usuario_demo", stageResponses, currentStage);
-
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "usuario_demo",
-          responses: Object.entries(responses).map(([idx, data]) => ({
-            questionId: Number(idx),
-            question: data.question,
-            answer: data.answer,
-          })),
-        }),
-      });
-
-      const result = await response.json();
-
-      onComplete({
-        responses,
-        report: result.report,
-        metrics: result.metrics,
-      });
-
-      toast.success("Análise gerada com sucesso!");
-    } catch (e) {
-      console.error(e);
-      toast.error("Erro ao enviar análise.");
-    } finally {
-      setIsSubmitting(false);
+      result = await response.json();
+    } catch (jsonErr) {
+      console.error("❌ Erro ao fazer parse do JSON:", jsonErr);
+      toast.error("Resposta inválida do servidor.");
+      return;
     }
-  };
+
+    console.log("🟢 Resultado recebido do GROQ:", result);
+
+    // Se o resultado vier vazio ou incompleto
+    if (!result || typeof result !== "object") {
+      console.error("❌ Resultado vazio/inválido:", result);
+      toast.error("Análise inválida retornada.");
+      return;
+    }
+
+    // =============================================
+    // 🔥 Agora salva o relatório final no Firestore
+    // =============================================
+    try {
+      await saveFinalReport("usuario_demo", {
+        report: result.report ?? "",
+        metrics: result.metrics ?? {},
+        risks: result.risks ?? {},
+        summary: result.summary ?? "",
+        controls: result.controls ?? [],
+        score: result.score ?? 0,
+      });
+
+      console.log("🟢 Relatório salvo no Firestore.");
+    } catch (firestoreError) {
+      console.error("❌ Erro ao salvar relatório:", firestoreError);
+      toast.error("Falha ao salvar relatório.");
+    }
+
+    // =============================
+    // 🔵 Envia para o Dashboard
+    // =============================
+    onComplete({
+      responses,
+      report: result.report,
+      metrics: result.metrics,
+    });
+
+    toast.success("Análise gerada com sucesso!");
+
+  } catch (e) {
+    console.error("❌ Erro inesperado:", e);
+    toast.error("Erro inesperado ao enviar análise.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const renderQuestionInput = () => {
     const currentValue = responses[globalQuestionIndex]?.answer;

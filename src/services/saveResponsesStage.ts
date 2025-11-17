@@ -2,7 +2,9 @@ import { db } from "@/integrations/firebase/client";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 
-// Salva todas as perguntas de um stage
+// =====================================================
+// 🔥 Salva todas as perguntas de um stage (0..5)
+// =====================================================
 export const saveResponsesStage = async (
   userId: string,
   responses: any,   // { 0: {…}, 1: {…}, 2: {…} ... }
@@ -30,17 +32,12 @@ export const saveResponsesStage = async (
         return setDoc(
           ref,
           {
-            // Em vez de ...data, salvamos tudo dentro de "responses"
             responses: data,
 
-            // Guarda index da pergunta
-            question: Number(questionIndex),
+            question: Number(questionIndex), // índice da pergunta
+            stage: stage,                    // número da etapa
 
-            // Guarda número do stage
-            stage: stage,
-
-            // Timestamp do Firestore
-            createdAt: serverTimestamp(),
+            createdAt: serverTimestamp(),    // timestamp
           },
           { merge: true }
         );
@@ -58,3 +55,46 @@ export const saveResponsesStage = async (
     throw error;
   }
 };
+
+
+// =====================================================
+// 🔥 Salva RELATÓRIO FINAL DO GROQ
+// =====================================================
+export const saveFinalReport = async (
+  userId: string,
+  reportData: any
+) => {
+  try {
+    // Caminho válido: collection/doc/collection/doc
+    const ref = doc(
+      db,
+      "responses",
+      userId,
+      "report",              // COLLECTION
+      "final"                // DOCUMENT
+    );
+
+    await setDoc(
+      ref,
+      {
+        report: reportData.report ?? "",
+        metrics: reportData.metrics ?? {},
+        risks: reportData.risks ?? {},
+        summary: reportData.summary ?? "",
+        controls: reportData.controls ?? [],
+        score: reportData.score ?? 0,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    console.log("✅ Relatório final salvo para:", userId);
+    toast.success("Relatório final salvo com sucesso!");
+  } catch (error) {
+    console.error("❌ Erro ao salvar relatório final:", error);
+    toast.error("Erro ao salvar o relatório final.");
+    throw error;
+  }
+};
+
+

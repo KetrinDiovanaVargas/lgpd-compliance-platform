@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:front\" \"npm run dev:back\"",
     "dev:front": "vite",
-    "dev:back": "node server/geminiServer.mjs",
+    "dev:back": "node server/server.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

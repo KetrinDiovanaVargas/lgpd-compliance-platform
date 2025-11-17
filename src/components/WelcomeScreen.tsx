@@ -61,6 +61,33 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
           {/* BADGES */}
           <div className="flex justify-center gap-3 mb-6">
 
+
+            {/* BADGE 3 – PPGES */}
+<div className="inline-flex items-center gap-2 px-4 py-2
+  bg-orange-400/10 rounded-full border border-orange-400/40">
+
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 64 64"
+    className="w-4 h-4 stroke-orange-300"
+    fill="none"
+    strokeWidth="2"
+  >
+    <path d="M32 6c-12 0-22 10-22 22s10 22 22 22c2 0 4 0 6-1v9l8-4v-9c5-4 8-11 8-17 0-12-10-22-22-22z" />
+    
+    <circle cx="22" cy="24" r="2" className="fill-orange-300" />
+    <path d="M22 26v6" />
+
+    <circle cx="32" cy="20" r="2" className="fill-orange-300" />
+    <path d="M32 22v10" />
+
+    <circle cx="42" cy="28" r="2" className="fill-orange-300" />
+    <path d="M42 30v4" />
+  </svg>
+
+  <span className="text-sm font-medium text-orange-300">PPGES</span>
+</div>
+
             {/* BADGE 1 */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full border border-primary/20">
               <Shield className="w-4 h-4 text-primary" />
@@ -79,6 +106,9 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
 
               <span className="text-sm font-medium text-green-300">UNIPAMPA</span>
             </div>
+
+            
+
 
           </div>
 
