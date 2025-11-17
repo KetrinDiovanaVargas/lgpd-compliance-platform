@@ -124,3 +124,17 @@ All colors MUST be HSL.
     box-shadow: none !important;
   }
 }
+
+.dashboard-card {
+  height: 360px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dashboard-card h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+

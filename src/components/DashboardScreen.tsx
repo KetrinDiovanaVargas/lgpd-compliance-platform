@@ -1,320 +1,757 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Download, RefreshCw, CheckCircle, AlertTriangle, XCircle, Shield, FileText, Lock } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, RadialBarChart, RadialBar, Legend, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+// -------------------------------------------------------------
+// DashboardScreen.tsx – Versão Final Corrigida
+// -------------------------------------------------------------
 
-interface DashboardScreenProps {
-  score: number;
-  responses: Record<string, any>;
-  onNewAssessment: () => void;
+import React from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+
+import {
+  CheckCircle2,
+  AlertTriangle,
+  BookOpen,
+  PlayCircle,
+  ArrowRight,
+  ShieldCheck,
+  RefreshCw,
+  Download,
+  Flame,
+  Pin,
+  AlertCircle,
+} from "lucide-react";
+
+import jsPDF from "jspdf";
+import { motion } from "framer-motion";
+
+// ======================================================
+// TIPOS
+// ======================================================
+
+interface Recommendation {
+  title: string;
+  description?: string;
+  priority: "Alta" | "Média" | "Baixa";
+  category?: string;
+  actions: string[];
+  learning?: {
+    book?: string;
+    video?: string;
+    references?: string;
+    steps?: string[];
+    isoRefs?: string;
+    lgpdRefs?: string;
+  };
 }
 
-export const DashboardScreen = ({ score, responses, onNewAssessment }: DashboardScreenProps) => {
-  const complianceScore = score || 0;
+type DashboardScreenProps = {
+  report?: string;
+  metrics?: any;
+  responses?: Record<string, any>;
+  onRestart?: () => void;
+};
 
-  const riskLevel = complianceScore >= 80 ? "low" : complianceScore >= 50 ? "medium" : "high";
+type ReportSection = {
+  title: string;
+  bullets: string[];
+  body: string;
+};
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case "low": return "text-green-400 bg-green-950/50 border-green-800";
-      case "medium": return "text-yellow-400 bg-yellow-950/50 border-yellow-800";
-      case "high": return "text-red-400 bg-red-950/50 border-red-800";
-      default: return "text-muted-foreground bg-muted border-border";
-    }
-  };
+// ======================================================
+// CORES
+// ======================================================
 
-  const getRiskIcon = (level: string) => {
-    switch (level) {
-      case "low": return <CheckCircle className="w-5 h-5" />;
-      case "medium": return <AlertTriangle className="w-5 h-5" />;
-      case "high": return <XCircle className="w-5 h-5" />;
-      default: return null;
-    }
-  };
+const RISK_COLORS = ["#22c55e", "#eab308", "#ef4444"];
 
-  // Data for charts
-  const scoreData = [
-    { name: 'Score', value: complianceScore, fill: 'hsl(var(--primary))' },
-    { name: 'Remaining', value: 100 - complianceScore, fill: 'hsl(var(--muted))' }
-  ];
+// ======================================================
+// SANITIZAÇÃO
+// ======================================================
+
+function sanitizeText(text: string): string {
+  return text
+    .replace(/usuário demo/gi, "participante da avaliação")
+    .replace(/usuário/gi, "participante")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function sanitizeArray(arr: string[] | undefined) {
+  return arr?.map((t) => sanitizeText(t)) ?? [];
+}
+
+// ======================================================
+// EXTRAÇÃO DE INFORMAÇÕES DO RELATÓRIO
+// ======================================================
+
+function extractSectionItems(report: string | undefined, section: number, title: string): string[] {
+  if (!report) return [];
+
+  const regex = new RegExp(
+    `\\*?${section}\\.\\s*${title}:?([\\s\\S]*?)(?=\\d+\\.\\s|$)`,
+    "i"
+  );
+
+  const match = report.match(regex);
+  if (!match) return [];
+
+  return match[1]
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("-"))
+    .map((l) => sanitizeText(l.replace("-", "").trim()));
+}
+
+function formatReportSections(report?: string): ReportSection[] {
+  if (!report) return [];
+
+  let cleaned = sanitizeText(report).replace(/\*\*/g, "").trim();
+
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}$/);
+  if (jsonMatch?.index !== undefined) {
+    cleaned = cleaned.slice(0, jsonMatch.index).trim();
+  }
+
+  const sections: ReportSection[] = [];
+  const regex = /(\d+\.\s*[^:\n]+:)([\s\S]*?)(?=\d+\.\s*[^:\n]+:|$)/g;
+
+  let match;
+  while ((match = regex.exec(cleaned)) !== null) {
+    const title = match[1].replace(/^\d+\.\s*/, "").replace(/:$/, "").trim();
+    const lines = match[2].split("\n").map((l) => l.trim());
+
+    const bullets = lines
+      .filter((l) => l.startsWith("-"))
+      .map((l) => sanitizeText(l.replace(/^-/, "").trim()));
+
+    const body = lines.filter((l) => !l.startsWith("-")).join(" ").trim();
+
+    sections.push({ title, bullets, body });
+  }
+
+  return sections.length ? sections : [{ title: "Análise Técnica", bullets: [], body: cleaned }];
+}
+
+// ======================================================
+// NORMALIZAÇÃO DE MÉTRICAS
+// ======================================================
+
+function normalizeMetrics(raw: any, report?: string) {
+  const safe = raw || {};
+
+  const score = Number(safe.score) || 0;
+  const risks = safe.risks ?? raw?.risks ?? {};
 
   const riskDistribution = [
-    { name: 'Baixo Risco', value: 35, fill: 'hsl(142 76% 36%)' },
-    { name: 'Médio Risco', value: 45, fill: 'hsl(48 96% 53%)' },
-    { name: 'Alto Risco', value: 20, fill: 'hsl(0 84% 60%)' }
+    { name: "Conforme", value: Number(risks.conforme) || 0 },
+    { name: "Parcial", value: Number(risks.parcial) || 0 },
+    { name: "Não Conforme", value: Number(risks.naoConforme) || 0 },
   ];
 
-  const controlsData = [
-    { category: 'Criptografia', implemented: 7, total: 10 },
-    { category: 'Acesso', implemented: 8, total: 10 },
-    { category: 'Backup', implemented: 6, total: 10 },
-    { category: 'Monitoramento', implemented: 5, total: 10 },
-    { category: 'Documentação', implemented: 9, total: 10 }
-  ];
+  const strengths =
+    sanitizeArray(safe.strengths).length > 0
+      ? sanitizeArray(safe.strengths)
+      : extractSectionItems(report, 3, "Pontos Fortes");
 
-  const radialData = [
-    { name: 'Compliance', value: complianceScore, fill: 'hsl(var(--primary))' }
-  ];
+  const attention =
+    sanitizeArray(safe.attentionPoints).length > 0
+      ? sanitizeArray(safe.attentionPoints)
+      : extractSectionItems(report, 4, "Pontos de Atenção");
+
+  const critical =
+    sanitizeArray(safe.criticalIssues).length > 0
+      ? sanitizeArray(safe.criticalIssues)
+      : extractSectionItems(report, 5, "Riscos Críticos");
+
+  const controlsStatus =
+    Array.isArray(safe.controlsStatus) && safe.controlsStatus.length > 0
+      ? safe.controlsStatus
+      : [
+          { name: "Criptografia", value: 3 },
+          { name: "Acesso", value: 2 },
+          { name: "Backup", value: 2 },
+          { name: "Monitoramento", value: 3 },
+          { name: "Documentação", value: 1 },
+        ];
+
+  const recommendations = Array.isArray(safe.recommendations) ? safe.recommendations : [];
+
+  return {
+    score,
+    riskDistribution,
+    strengths,
+    attention,
+    critical,
+    controlsStatus,
+    recommendations,
+  };
+}
+
+// ======================================================
+// GERAR RECURSOS AUTOMÁTICOS
+// ======================================================
+
+function buildLearningResources(topic: string) {
+  const txt = topic.toLowerCase();
+
+  if (txt.includes("criptograf")) {
+    return {
+      book: "Implementing ISO/IEC 27001 – Edward Humphreys",
+      video: "ISO 27001 Encryption Overview",
+      references: "Guia de Criptografia",
+      steps: [
+        "Mapear dados sensíveis.",
+        "Ativar criptografia em repouso.",
+        "Ativar TLS atualizado.",
+        "Documentar chaves criptográficas.",
+      ],
+      isoRefs: "ISO 27001 – Controle A.10",
+      lgpdRefs: "LGPD – Art. 46",
+    };
+  }
+
+  return {
+    book: "LGPD Comentada – Doutrina Brasileira",
+    video: "Introdução à LGPD",
+    references: "Artigos sobre boas práticas em proteção de dados",
+    steps: ["Criar responsáveis internos.", "Implementar ações imediatas.", "Registrar evidências."],
+    isoRefs: "ISO – Controles Gerais",
+    lgpdRefs: "LGPD – Arts. 6, 46 e 49",
+  };
+}
+
+// ======================================================
+// UTIL
+// ======================================================
+
+function getRiskColor(score: number) {
+  if (score < 40) return "#ef4444";
+  if (score < 70) return "#eab308";
+  return "#22c55e";
+}
+// ======================================================
+// COMPONENTE PRINCIPAL
+// ======================================================
+
+const DashboardScreen: React.FC<DashboardScreenProps> = ({
+  report,
+  metrics,
+  onRestart,
+}) => {
+  const cleanedReport = report ? sanitizeText(report) : undefined;
+  const data = normalizeMetrics(metrics, cleanedReport);
+  const reportSections = formatReportSections(report);
+
+  const score = data.score;
+  const riskData = data.riskDistribution;
+  const strengths = data.strengths;
+  const attention = data.attention;
+  const critical = data.critical;
+  const controls = data.controlsStatus;
+
+  const enrichedRecommendations: Recommendation[] = data.recommendations.map(
+    (r: any) => ({
+      title: r.title,
+      description: r.description,
+      priority: r.priority ?? "Média",
+      category: r.category,
+      actions: r.actions ?? [],
+      learning: r.learning || buildLearningResources(r.title),
+    })
+  );
+
+  // ======================================================
+  // EXPORTAR PDF
+  // ======================================================
+
+  const handleExportAnalysisPDF = async () => {
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+
+    pdf.setFillColor(4, 7, 29);
+    pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.setTextColor(186, 230, 253);
+    pdf.text("Plataforma LGPD – Análise Técnica Completa", margin, 20);
+
+    let cursorY = 35;
+
+    const ensurePageSpace = (extra = 0) => {
+      if (cursorY > pageHeight - 30 - extra) {
+        pdf.addPage();
+        pdf.setFillColor(4, 7, 29);
+        pdf.rect(0, 0, pageWidth, pageHeight, "F");
+        cursorY = 20;
+      }
+    };
+
+    reportSections.forEach((sec) => {
+      ensurePageSpace(20);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(13);
+      pdf.setTextColor(180, 170, 255);
+      pdf.text(sec.title, margin, cursorY);
+      cursorY += 6;
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+      pdf.setTextColor(222, 228, 240);
+
+      const bodyLines = pdf.splitTextToSize(
+        sec.body,
+        pageWidth - margin * 2
+      );
+      pdf.text(bodyLines, margin, cursorY);
+      cursorY += bodyLines.length * 6;
+
+      sec.bullets.forEach((b) => {
+        ensurePageSpace();
+        const lines = pdf.splitTextToSize("• " + b, pageWidth - margin * 2);
+        pdf.text(lines, margin, cursorY);
+        cursorY += lines.length * 6;
+      });
+
+      cursorY += 4;
+    });
+
+    pdf.save("analise-completa.pdf");
+  };
+
+  // ======================================================
+  // RENDER
+  // ======================================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0e1a] via-[#0d1526] to-[#000000] relative overflow-hidden py-8">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-40 left-40 w-[600px] h-[600px] bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-40 right-40 w-[500px] h-[500px] bg-accent/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-      </div>
-      <div className="container relative z-10 mx-auto px-4 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 animate-fade-up">
-          <h1 className="text-4xl font-bold mb-2 text-white">
-            Resultado da Análise
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-slate-950 to-indigo-950 text-slate-50 px-6 py-10">
+
+      <div className="mx-auto max-w-6xl space-y-10 rounded-3xl border border-slate-800/80 bg-slate-950/95 p-8 shadow-[0_0_80px_rgba(56,189,248,0.25)]">
+
+        {/* HEADER */}
+        <header className="space-y-1 border-b border-slate-800/60 pb-4">
+          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-indigo-400">
+            Resultado da Análise de Conformidade
           </h1>
-          <p className="text-white/80">
-            Análise completa de conformidade LGPD e riscos ISO/IEC 27001
+          <p className="text-sm text-slate-400">
+            Avaliação baseada na LGPD e ISO/IEC 27001.
           </p>
-        </div>
+        </header>
 
-        {/* Score Overview with Charts */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          {/* Main Score Card */}
-          <Card className="p-6 shadow-elegant animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.1s" }}>
-            <div className="text-center">
-              <h2 className="text-xl font-bold mb-4 flex items-center justify-center gap-2 text-white">
-                <Shield className="w-5 h-5 text-primary" />
-                Score de Conformidade
-              </h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <RadialBarChart 
-                  cx="50%" 
-                  cy="50%" 
-                  innerRadius="60%" 
-                  outerRadius="90%" 
-                  barSize={15} 
-                  data={radialData}
-                  startAngle={90}
-                  endAngle={-270}
-                >
-                  <RadialBar
-                    background
-                    dataKey="value"
-                    cornerRadius={10}
-                  />
-                  <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
-                    <tspan fontSize="42" fontWeight="bold">{complianceScore}</tspan>
-                    <tspan fontSize="16" x="50%" dy="1.5em" className="fill-muted-foreground">de 100</tspan>
-                  </text>
-                </RadialBarChart>
-              </ResponsiveContainer>
-              <Badge className={`${getRiskColor(riskLevel)} px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 mt-4`}>
-                {getRiskIcon(riskLevel)}
-                Risco: {riskLevel === "low" ? "Baixo" : riskLevel === "medium" ? "Médio" : "Alto"}
-              </Badge>
+        {/* ===========================
+            PAINÉIS SCORE + RISCO + ESTATÍSTICAS
+        ============================ */}
+        <section className="grid gap-5 md:grid-cols-3">
+
+          {/* SCORE */}
+          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 flex flex-col h-[480px]">
+            <h2 className="text-lg font-semibold text-slate-100 mb-6">
+              Score de Conformidade
+            </h2>
+
+            <div className="flex flex-col items-center justify-center flex-1 gap-4">
+
+              <div
+                className="h-52 w-52 rounded-full flex items-center justify-center shadow-[0_0_35px_var(--risk-color)] border-[6px]"
+                style={{
+                  ["--risk-color" as any]: getRiskColor(score),
+                  borderColor: getRiskColor(score),
+                }}
+              >
+                <span className="text-5xl font-black">{score}</span>
+              </div>
+
+              <p className="text-xs text-slate-400">de 100 pontos</p>
+
+              <span
+                className="inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold"
+                style={{
+                  backgroundColor: `${getRiskColor(score)}33`,
+                  border: `1px solid ${getRiskColor(score)}`,
+                  color: getRiskColor(score),
+                }}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {score < 40
+                  ? "Risco Alto"
+                  : score < 70
+                  ? "Risco Moderado"
+                  : "Conformidade Alta"}
+              </span>
             </div>
-          </Card>
 
-          {/* Risk Distribution */}
-          <Card className="p-6 shadow-elegant animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.2s" }}>
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
-              <AlertTriangle className="w-5 h-5 text-primary" />
-              Distribuição de Riscos
-            </h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={riskDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {riskDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
+            <div className="h-20"></div>
+          </div>
+
+          {/* DISTRIBUIÇÃO DE RISCO */}
+          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 flex flex-col justify-between h-[480px]">
+            <h2 className="text-lg font-semibold text-slate-100 mb-6">
+              Distribuição de Risco
+            </h2>
+
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={riskData}
+                    dataKey="value"
+                    innerRadius={50}
+                    outerRadius={80}
+                  >
+                    {riskData.map((entry, i) => (
+                      <Cell key={i} fill={RISK_COLORS[i]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legendas — mesmo design do gráfico de estatísticas */}
+            <div className="mt-4 space-y-2">
+              {riskData.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-900/70 border shadow-sm"
+                  style={{
+                    borderColor: `${RISK_COLORS[i]}55`,
                   }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
-              {riskDistribution.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: item.fill }} />
-                  <span className="text-muted-foreground">{item.value}%</span>
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: RISK_COLORS[i] }}
+                    />
+                    <span className="text-[12px]">{item.name}</span>
+                  </div>
+
+                  <span
+                    className="font-semibold text-[12px]"
+                    style={{ color: RISK_COLORS[i] }}
+                  >
+                    {item.value}%
+                  </span>
                 </div>
               ))}
             </div>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card className="p-6 shadow-elegant animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.3s" }}>
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
-              <FileText className="w-5 h-5 text-primary" />
-              Estatísticas
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span className="text-sm text-white">Pontos Fortes</span>
-                </div>
-                <span className="text-lg font-bold text-green-400">12</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                  <span className="text-sm text-white">Atenção Necessária</span>
-                </div>
-                <span className="text-lg font-bold text-yellow-400">8</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <XCircle className="w-4 h-4 text-red-400" />
-                  <span className="text-sm text-white">Crítico</span>
-                </div>
-                <span className="text-lg font-bold text-red-400">3</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Controls Implementation Chart */}
-        <Card className="p-6 shadow-elegant mb-8 animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.4s" }}>
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
-            <Lock className="w-5 h-5 text-primary" />
-            Status de Controles ISO/IEC 27001
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={controlsData} layout="vertical">
-              <XAxis type="number" domain={[0, 10]} stroke="hsl(var(--muted-foreground))" />
-              <YAxis dataKey="category" type="category" width={120} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  color: 'hsl(var(--foreground))'
-                }}
-              />
-              <Bar dataKey="implemented" fill="hsl(var(--primary))" radius={[0, 8, 8, 0]} />
-              <Bar dataKey="total" fill="hsl(var(--muted))" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Key Findings */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="p-6 shadow-card animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.5s" }}>
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              Pontos Fortes
-            </h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3 p-3 bg-green-950/20 rounded-lg border border-green-800/30">
-                <span className="text-green-400 mt-0.5">✓</span>
-                <span className="text-sm text-white">Política de privacidade adequada e atualizada</span>
-              </li>
-              <li className="flex items-start gap-3 p-3 bg-green-950/20 rounded-lg border border-green-800/30">
-                <span className="text-green-400 mt-0.5">✓</span>
-                <span className="text-sm text-white">Processo de consentimento documentado</span>
-              </li>
-              <li className="flex items-start gap-3 p-3 bg-green-950/20 rounded-lg border border-green-800/30">
-                <span className="text-green-400 mt-0.5">✓</span>
-                <span className="text-sm text-white">Treinamento regular da equipe</span>
-              </li>
-            </ul>
-          </Card>
-
-          <Card className="p-6 shadow-card animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.6s" }}>
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
-              <AlertTriangle className="w-5 h-5 text-yellow-400" />
-              Áreas de Atenção
-            </h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3 p-3 bg-yellow-950/20 rounded-lg border border-yellow-800/30">
-                <span className="text-yellow-400 mt-0.5">!</span>
-                <span className="text-sm text-white">Melhorar medidas de segurança técnica</span>
-              </li>
-              <li className="flex items-start gap-3 p-3 bg-yellow-950/20 rounded-lg border border-yellow-800/30">
-                <span className="text-yellow-400 mt-0.5">!</span>
-                <span className="text-sm text-white">Documentar processos de resposta a incidentes</span>
-              </li>
-              <li className="flex items-start gap-3 p-3 bg-yellow-950/20 rounded-lg border border-yellow-800/30">
-                <span className="text-yellow-400 mt-0.5">!</span>
-                <span className="text-sm text-white">Revisar e atualizar controles de acesso</span>
-              </li>
-            </ul>
-          </Card>
-        </div>
-
-        {/* Recommendations */}
-        <Card className="p-6 shadow-elegant mb-8 animate-fade-up bg-card/10 backdrop-blur-sm border-border/20" style={{ animationDelay: "0.7s" }}>
-          <h3 className="text-xl font-semibold mb-4 text-white">Recomendações Prioritárias</h3>
-          <div className="space-y-3">
-            {[
-              {
-                title: "Implementar criptografia end-to-end",
-                priority: "Alta",
-                iso: "A.10.1.1",
-              },
-              {
-                title: "Estabelecer política de backup automatizado",
-                priority: "Alta",
-                iso: "A.12.3.1",
-              },
-              {
-                title: "Documentar processos de tratamento de dados",
-                priority: "Média",
-                iso: "A.18.1.1",
-              },
-            ].map((rec, index) => (
-              <div key={index} className="flex items-start justify-between p-4 bg-muted/30 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex-1">
-                  <h4 className="font-medium mb-1 text-white">{rec.title}</h4>
-                  <p className="text-sm text-white/70">
-                    Controle ISO/IEC 27001: {rec.iso}
-                  </p>
-                </div>
-                <Badge variant={rec.priority === "Alta" ? "destructive" : "secondary"}>
-                  {rec.priority}
-                </Badge>
-              </div>
-            ))}
           </div>
-        </Card>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 animate-fade-up" style={{ animationDelay: "0.8s" }}>
-          <Button 
-            variant="outline" 
-            size="lg" 
-            className="flex-1"
-            onClick={() => window.print()}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Exportar Relatório
-          </Button>
-          <Button 
-            size="lg" 
-            className="flex-1 shadow-elegant hover:shadow-glow transition-all"
-            onClick={onNewAssessment}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Nova Avaliação
-          </Button>
+          {/* ESTATÍSTICAS */}
+          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 flex flex-col justify-between h-[480px]">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">
+              Estatísticas
+            </h2>
+
+            {/* GRÁFICO CENTRALIZADO */}
+            <div className="flex-1 flex items-center justify-center min-h-[220px]">
+              <ResponsiveContainer width="95%" height={200}>
+                <BarChart
+                  data={[
+                    { label: "Pontos Fortes", value: strengths.length },
+                    { label: "Atenção", value: attention.length },
+                    { label: "Críticos", value: critical.length },
+                  ]}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "#cbd5f5", fontSize: 12 }}
+                  />
+
+                  <YAxis
+                    tick={{ fill: "#cbd5f5", fontSize: 12 }}
+                    allowDecimals={false}
+                  />
+
+                  <Bar dataKey="value" radius={[10, 10, 10, 10]}>
+                    <Cell fill="#22c55e" />
+                    <Cell fill="#eab308" />
+                    <Cell fill="#ef4444" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* LEGENDA — Agora igual ao card Distribuição de Risco */}
+            <div className="mt-4 space-y-3">
+
+              <div className="flex justify-between items-center px-4 py-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="text-[13px] text-emerald-200">Pontos Fortes</span>
+                </div>
+                <span className="font-semibold text-[13px] text-emerald-300">
+                  {strengths.length}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center px-4 py-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                  <span className="text-[13px] text-yellow-200">Atenção</span>
+                </div>
+                <span className="font-semibold text-[13px] text-yellow-300">
+                  {attention.length}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center px-4 py-2 rounded-xl border border-red-500/40 bg-red-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                  <span className="text-[13px] text-red-200">Críticos</span>
+                </div>
+                <span className="font-semibold text-[13px] text-red-300">
+                  {critical.length}
+                </span>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+        {/* ======================================================
+            CONTROLES ISO
+        ====================================================== */}
+        <section className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5">
+          <h2 className="text-sm font-semibold mb-2">
+            Status dos Controles ISO/IEC 27001
+          </h2>
+
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={controls}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "#cbd5f5", fontSize: 11 }} />
+                <YAxis tick={{ fill: "#cbd5f5", fontSize: 11 }} />
+
+                <defs>
+                  <linearGradient id="isoG" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="50%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#a855f7" />
+                  </linearGradient>
+                </defs>
+
+                <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="url(#isoG)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* ======================================================
+            PONTOS FORTES / ATENÇÃO NECESSÁRIA
+        ====================================================== */}
+        <section className="grid md:grid-cols-2 gap-5">
+
+          {/* PONTOS FORTES */}
+          <div className="rounded-2xl bg-emerald-900/20 border border-emerald-600/40 p-5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-emerald-200 mb-3">
+              <CheckCircle2 className="h-4 w-4" /> Pontos fortes
+            </h3>
+
+            {strengths.length === 0 ? (
+              <p className="text-xs text-emerald-200/70">Nenhum ponto forte encontrado.</p>
+            ) : (
+              <ul className="space-y-2 text-xs">
+                {strengths.map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex gap-2 bg-emerald-900/30 p-2 rounded-lg border border-emerald-700/40"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 mt-1" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* ATENÇÃO */}
+          <div className="rounded-2xl bg-amber-900/20 border border-amber-600/40 p-5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-200 mb-3">
+              <AlertTriangle className="h-4 w-4" /> Atenção necessária
+            </h3>
+
+            {attention.length === 0 ? (
+              <p className="text-xs text-amber-200/70">Nenhuma área de atenção encontrada.</p>
+            ) : (
+              <ul className="space-y-2 text-xs">
+                {attention.map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex gap-2 bg-amber-900/30 p-2 rounded-lg border border-amber-700/40"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300 mt-1" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+        </section>
+
+        {/* ======================================================
+            RECOMENDAÇÕES PERSONALIZADAS
+        ====================================================== */}
+        <section className="rounded-3xl bg-slate-950/80 border border-slate-800 p-8 shadow-[0_0_80px_rgba(99,102,241,0.25)] space-y-6">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200 tracking-tight">
+            <Flame className="h-4 w-4 text-fuchsia-400" />
+            Recomendações Personalizadas
+          </h3>
+
+          {enrichedRecommendations.length === 0 ? (
+            <p className="text-xs text-slate-500">Nenhuma recomendação disponível.</p>
+          ) : (
+            <div className="space-y-5">
+              {enrichedRecommendations.map((rec: Recommendation, i: number) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: i * 0.05 }}
+                  className="rounded-xl bg-slate-900/90 border border-slate-700 px-6 py-5 space-y-4 shadow-lg"
+                >
+                  {/* CABEÇALHO */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex items-start gap-2">
+                      <Pin className="h-4 w-4 text-sky-400 mt-[2px]" />
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-100">
+                          {rec.title}
+                        </h4>
+                        {rec.description && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            {rec.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* PRIORIDADE */}
+                    <span
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold border
+                        ${
+                          rec.priority === "Alta"
+                            ? "bg-red-500/15 text-red-300 border-red-500/40"
+                            : rec.priority === "Média"
+                            ? "bg-amber-500/15 text-amber-200 border-amber-500/40"
+                            : "bg-emerald-500/15 text-emerald-200 border-emerald-500/40"
+                        }`}
+                    >
+                      Prioridade: {rec.priority}
+                    </span>
+                  </div>
+
+                  {/* CATEGORIA */}
+                  {rec.category && (
+                    <div className="flex flex-wrap text-[11px]">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-sky-300">
+                        <AlertCircle className="h-3 w-3" />
+                        Categoria: {rec.category}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* AÇÕES */}
+                  {Array.isArray(rec.actions) && rec.actions.length > 0 && (
+                    <div>
+                      <p className="text-[11px] text-slate-400 mb-1">
+                        Ações recomendadas:
+                      </p>
+                      <ul className="space-y-1 text-[11px] text-slate-200">
+                        {rec.actions.map((a, idx) => (
+                          <li key={idx} className="flex gap-2">
+                            <ArrowRight className="h-3 w-3 mt-[2px] text-sky-300" />
+                            <span>{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* APRENDIZADO */}
+                  {rec.learning && (
+                    <div className="pt-3 border-t border-slate-700/60 grid gap-3 md:grid-cols-3 text-[11px] text-slate-300">
+
+                      {rec.learning.book && (
+                        <div className="flex items-start gap-2">
+                          <BookOpen className="h-3 w-3 mt-[2px] text-emerald-300" />
+                          <span>{rec.learning.book}</span>
+                        </div>
+                      )}
+
+                      {rec.learning.video && (
+                        <div className="flex items-start gap-2">
+                          <PlayCircle className="h-3 w-3 mt-[2px] text-sky-300" />
+                          <span>{rec.learning.video}</span>
+                        </div>
+                      )}
+
+                      {rec.learning.references && (
+                        <div className="flex items-start gap-2">
+                          <ShieldCheck className="h-3 w-3 mt-[2px] text-violet-300" />
+                          <span>{rec.learning.references}</span>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ======================================================
+            FOOTER
+        ====================================================== */}
+        <div className="mx-auto max-w-6xl mt-10 grid grid-cols-3 items-center">
+
+          {/* ESQUERDA */}
+          <div className="flex justify-start">
+            <button
+              onClick={handleExportAnalysisPDF}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-500 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:brightness-110 transition"
+            >
+              <Download className="h-4 w-4" />
+              Baixar Análise Completa (PDF)
+            </button>
+          </div>
+
+          {/* CENTRO */}
+          <div className="flex justify-center">
+            <p className="text-[11px] text-slate-500">
+              © {new Date().getFullYear()} Plataforma LGPD — Relatórios de Conformidade.
+            </p>
+          </div>
+
+          {/* DIREITA */}
+          <div className="flex justify-end">
+            <button
+              onClick={onRestart}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg hover:brightness-110 transition"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Nova Avaliação
+            </button>
+          </div>
+
         </div>
+
       </div>
     </div>
   );
-
 };
 
-  export default DashboardScreen;
+export default DashboardScreen;

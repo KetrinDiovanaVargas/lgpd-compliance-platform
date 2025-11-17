@@ -2,44 +2,52 @@ import { useState } from "react";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import QuestionnaireScreen from "@/components/QuestionnaireScreen";
 import DashboardScreen from "@/components/DashboardScreen";
-import { stages } from "../lib/questions";
-import { saveResponses } from "../lib/firebaseService";
-import { calculateComplianceScore } from "../lib/utils";
-import { toast } from "sonner";
-
+import { stages } from "@/lib/questions";
 
 type Screen = "welcome" | "questionnaire" | "dashboard";
 
 export const Index = () => {
   const [screen, setScreen] = useState<Screen>("welcome");
-  const [responses, setResponses] = useState<Record<string, any>>({});
-  const [score, setScore] = useState<number>(0);
 
-  const handleFinish = async (answers: Record<string, any>) => {
-    setResponses(answers);
-    const compliance = calculateComplianceScore(answers);
-    setScore(compliance);
+  // Dados que virão do onComplete
+  const [finalResponses, setFinalResponses] = useState<Record<string, any>>({});
+  const [finalReport, setFinalReport] = useState<string>("");
+  const [finalMetrics, setFinalMetrics] = useState<any>(null);
 
-    try {
-      await saveResponses("usuario_demo", answers);
-      toast.success("Respostas salvas com sucesso!");
-      setScreen("dashboard");
-    } catch (error) {
-      toast.error("Erro ao salvar respostas.");
-      console.error(error);
-    }
+  // 🔥 Função que o QuestionnaireScreen chama ao terminar
+  const handleComplete = (payload: {
+    responses: Record<string, any>;
+    report: string;
+    metrics: any;
+  }) => {
+    setFinalResponses(payload.responses);
+    setFinalReport(payload.report);
+    setFinalMetrics(payload.metrics);
+
+    setScreen("dashboard");
   };
 
   return (
     <>
       {screen === "welcome" && (
-  <WelcomeScreen onStart={() => setScreen("questionnaire")} />
-)}
-      {screen === "questionnaire" && (
-        <QuestionnaireScreen onComplete={handleFinish} stages={stages} onBack={() => setScreen("welcome")} />
+        <WelcomeScreen onStart={() => setScreen("questionnaire")} />
       )}
+
+      {screen === "questionnaire" && (
+        <QuestionnaireScreen
+          stages={stages}
+          onComplete={handleComplete}   // <-- agora funciona
+          onBack={() => setScreen("welcome")}
+        />
+      )}
+
       {screen === "dashboard" && (
-        <DashboardScreen score={score} responses={responses} />
+        <DashboardScreen
+          report={finalReport}
+          metrics={finalMetrics}
+          responses={finalResponses}
+          onRestart={() => setScreen("welcome")}
+        />
       )}
     </>
   );

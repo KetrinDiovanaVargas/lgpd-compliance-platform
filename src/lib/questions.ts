@@ -36,8 +36,9 @@ export const stages: Stage[] = [
           "Atendimento ao Cliente",
           "Outro"
         ],
-        required: true
+        required: true,
       },
+
       {
         id: "formacao",
         type: "select",
@@ -50,10 +51,12 @@ export const stages: Stage[] = [
           "Ensino Superior - Administração",
           "Ensino Superior - Outras áreas",
           "Pós-graduação/MBA",
-          "Mestrado/Doutorado"
+          "Mestrado/Doutorado",
+          "Outro"
         ],
-        required: true
+        required: true,
       },
+
       {
         id: "cargo",
         type: "select",
@@ -67,7 +70,8 @@ export const stages: Stage[] = [
           "Gerente",
           "Diretor",
           "C-Level (CEO, CTO, etc.)",
-          "DPO/Encarregado de Dados"
+          "DPO/Encarregado de Dados",
+          "Outro"
         ],
         required: true
       },
