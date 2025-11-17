@@ -1,42 +1,60 @@
 import { db } from "@/integrations/firebase/client";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 
-// Salva uma resposta específica de um estágio
+// Salva todas as perguntas de um stage
 export const saveResponsesStage = async (
   userId: string,
-  responses: any,
-  stage: number
+  responses: any,   // { 0: {…}, 1: {…}, 2: {…} ... }
+  stage: number     // 0 a 5
 ) => {
   try {
     // Remove valores undefined
     const safeResponses = JSON.parse(JSON.stringify(responses));
 
-    // 🔥 Caminho válido no Firestore:
-    // responses → userId(doc) → stages(col) → stage(doc) → questions(col)
-    const questionsRef = collection(
-      db,
-      "responses",
-      userId,
-      "stages",
-      stage.toString(),
-      "questions"
+    // Para cada pergunta (0..5)
+    const writes = Object.entries(safeResponses).map(
+      async ([questionIndex, data]) => {
+        // 🔥 Caminho exato no Firestore
+        const ref = doc(
+          db,
+          "responses",
+          userId,
+          "stages",
+          String(stage),
+          "questions",
+          String(questionIndex) // ID fixo da pergunta 0..5
+        );
+
+        // 💾 Salva cada pergunta separadamente
+        return setDoc(
+          ref,
+          {
+            // Em vez de ...data, salvamos tudo dentro de "responses"
+            responses: data,
+
+            // Guarda index da pergunta
+            question: Number(questionIndex),
+
+            // Guarda número do stage
+            stage: stage,
+
+            // Timestamp do Firestore
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
     );
 
-    const docRef = await addDoc(questionsRef, {
-      stage,
-      responses: safeResponses,
-      createdAt: serverTimestamp(),
-    });
+    await Promise.all(writes);
 
-    console.log(`✅ Resposta do estágio ${stage} salva no Firestore:`, docRef.id);
-    toast.success(`✅ Resposta do estágio ${stage} salva com sucesso!`);
-
-    return docRef.id;
+    toast.success(`Stage ${stage} salvo com sucesso!`);
+    console.log(`🔥 Stage ${stage} salvo com sucesso!`);
 
   } catch (error) {
-    console.error("❌ Erro ao salvar resposta do estágio:", error);
-    toast.error("❌ Erro ao salvar resposta.");
+    console.error("❌ Erro ao salvar respostas do stage:", error);
+    toast.error("Erro ao salvar respostas.");
     throw error;
   }
 };
